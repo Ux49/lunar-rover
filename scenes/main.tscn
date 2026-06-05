@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://cadaomyqbgtud"]
+
+[ext_resource type="PackedScene" uid="uid://bwydgcgodb1wm" path="res://scenes/player.tscn" id="1_o5qli"]
+
+[sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_o5qli"]
+
+[node name="main" type="Node2D" unique_id=1742402189]
+
+[node name="player" parent="." unique_id=1446381301 instance=ExtResource("1_o5qli")]
+
+[node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=200735912]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D" unique_id=77394579]
+position = Vector2(-7, 69)
+shape = SubResource("WorldBoundaryShape2D_o5qli")
