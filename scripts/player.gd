@@ -11,10 +11,10 @@ func _physics_process(delta: float) -> void:
 		velocity += get_gravity() * delta
 
 	# Jump.
-	if Input.is_action_just_pressed("ui_accept") and is_on_floor():
+	if Input.is_action_just_pressed("jump") and is_on_floor():
 		velocity.y = JUMP_VELOCITY
 
-	var direction := Input.get_axis("ui_left", "ui_right")
+	var direction := Input.get_axis("left", "right")
 
 	if direction:
 		velocity.x = direction * SPEED
@@ -25,10 +25,46 @@ func _physics_process(delta: float) -> void:
 
 	update_animation(direction)
 
+var was_in_air = false
+
 func update_animation(direction):
+	# Flip sprite
+	if direction > 0:
+		animated_sprite_2d.flip_h = false
+	elif direction < 0:
+		animated_sprite_2d.flip_h = true
+
+	# Dash
+	if Input.is_action_pressed("dash"):
+		animated_sprite_2d.play("dash")
+		return
+
+	# Shield (blocks normal walking)
+	if Input.is_action_pressed("shield") and is_on_floor():
+		if direction != 0:
+			animated_sprite_2d.play("shield_up")
+		else:
+			animated_sprite_2d.play("shield_idle")
+		return
+
+	# Crouch
+	if Input.is_action_pressed("crouch") and is_on_floor():
+		if direction != 0:
+			animated_sprite_2d.play("crouch_walk")
+		else:
+			animated_sprite_2d.play("crouch")
+		return
+
+	# Air states
 	if not is_on_floor():
-		animated_sprite_2d.play("jump")
-	elif direction != 0:
+		if velocity.y < 0:
+			animated_sprite_2d.play("jump")
+		else:
+			animated_sprite_2d.play("fall")
+		return
+
+	# Ground states
+	if direction != 0:
 		animated_sprite_2d.play("walk")
 	else:
 		animated_sprite_2d.play("idle")
