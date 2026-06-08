@@ -438,4 +438,4 @@ autoplay = "idle"
 shape = SubResource("CapsuleShape2D_dqkch")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=2099124982]
-zoom = Vector2(4, 4)
+zoom = Vector2(2, 2)

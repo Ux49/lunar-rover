@@ -52,7 +52,7 @@ func update_animation(direction):
 		if direction != 0:
 			animated_sprite_2d.play("crouch_walk")
 		else:
-			animated_sprite_2d.play("crouch")
+			animated_sprite_2d.play("crouch_idle")
 		return
 
 	# Air states
