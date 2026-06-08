@@ -662,7 +662,11 @@ animations = [{
 }]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_jej6c"]
-height = 58.0
+height = 46.0
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_4r5pv"]
+radius = 6.0
+height = 34.0
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_qfm1y"]
 radius = 6.0
@@ -670,7 +674,10 @@ height = 32.0
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_fulsm"]
 radius = 14.0
-height = 58.0
+height = 60.0
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_3v2ag"]
+height = 34.0
 
 [node name="player" type="CharacterBody2D" unique_id=1446381301]
 floor_snap_length = 5.0
@@ -679,7 +686,7 @@ script = ExtResource("1_qlg0r")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=617246929]
 position = Vector2(0, -3)
 sprite_frames = SubResource("SpriteFrames_a8ls1")
-animation = &"shield_idle"
+animation = &"walk"
 autoplay = "idle"
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=2099124982]
@@ -690,9 +697,15 @@ rotation_smoothing_enabled = true
 [node name="idle_collision" type="CollisionShape2D" parent="." unique_id=520899593]
 shape = SubResource("CapsuleShape2D_jej6c")
 
+[node name="shieldBox" type="CollisionShape2D" parent="." unique_id=1320185166]
+visible = false
+position = Vector2(15, -2)
+shape = SubResource("CapsuleShape2D_4r5pv")
+
 [node name="AttackHitboxArea" type="Area2D" parent="." unique_id=1542900282]
 
 [node name="AttackHitbox" type="CollisionShape2D" parent="AttackHitboxArea" unique_id=714811011]
+visible = false
 position = Vector2(26, -1)
 rotation = 1.5707964
 shape = SubResource("CapsuleShape2D_qfm1y")
@@ -702,5 +715,13 @@ shape = SubResource("CapsuleShape2D_qfm1y")
 [node name="Hurtbox" type="CollisionShape2D" parent="HurtboxArea" unique_id=768991281]
 shape = SubResource("CapsuleShape2D_fulsm")
 
+[node name="CrouchHurtboxArea" type="Area2D" parent="." unique_id=1719187944]
+
+[node name="crouch_collision" type="CollisionShape2D" parent="CrouchHurtboxArea" unique_id=929335507]
+visible = false
+position = Vector2(7, 10)
+shape = SubResource("CapsuleShape2D_3v2ag")
+
 [connection signal="body_entered" from="AttackHitboxArea" to="." method="_on_attack_hitbox_body_entered"]
 [connection signal="body_entered" from="HurtboxArea" to="." method="_on_hurtbox_body_entered"]
+[connection signal="body_entered" from="CrouchHurtboxArea" to="." method="_on_crouch_hurtbox_body_entered"]
