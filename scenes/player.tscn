@@ -678,28 +678,32 @@ script = ExtResource("1_qlg0r")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=617246929]
 position = Vector2(0, -3)
+scale = Vector2(0.5, 0.5)
 sprite_frames = SubResource("SpriteFrames_a8ls1")
-animation = &"shield_idle"
+animation = &"attack_3"
 autoplay = "idle"
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=2099124982]
-zoom = Vector2(2, 2)
+zoom = Vector2(4, 4)
 position_smoothing_enabled = true
 rotation_smoothing_enabled = true
 
 [node name="idle_collision" type="CollisionShape2D" parent="." unique_id=520899593]
+scale = Vector2(0.5, 0.5)
 shape = SubResource("CapsuleShape2D_jej6c")
 
 [node name="AttackHitboxArea" type="Area2D" parent="." unique_id=1542900282]
 
 [node name="AttackHitbox" type="CollisionShape2D" parent="AttackHitboxArea" unique_id=714811011]
-position = Vector2(26, -1)
+position = Vector2(13, -1)
 rotation = 1.5707964
+scale = Vector2(0.5, 0.5)
 shape = SubResource("CapsuleShape2D_qfm1y")
 
 [node name="HurtboxArea" type="Area2D" parent="." unique_id=292522035]
 
 [node name="Hurtbox" type="CollisionShape2D" parent="HurtboxArea" unique_id=768991281]
+scale = Vector2(0.5, 0.5)
 shape = SubResource("CapsuleShape2D_fulsm")
 
 [connection signal="body_entered" from="AttackHitboxArea" to="." method="_on_attack_hitbox_body_entered"]

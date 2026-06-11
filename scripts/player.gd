@@ -1,9 +1,9 @@
 extends CharacterBody2D
 
-const SPEED = 200.0
-const JUMP_VELOCITY = -400.0
+const SPEED = 120.0
+const JUMP_VELOCITY = -250.0
 const COMBO_WINDOW = 0.5
-const DASH_SPEED = 500.0
+const DASH_SPEED = 280.0
 const DASH_DURATION = 0.2
 const DASH_COOLDOWN = 0.8
 const HURT_INVINCIBLE_DURATION = 1.2
