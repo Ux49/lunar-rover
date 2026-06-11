@@ -13,7 +13,7 @@
 [ext_resource type="Texture2D" uid="uid://besle3j261upk" path="res://assets/Fantasy Swamp Forest/Free/Free.png" id="10_trceg"]
 [ext_resource type="Texture2D" uid="uid://bhsd3ic6culue" path="res://assets/Fantasy Swamp Forest/Free/BG_3/BG_3.png" id="11_trceg"]
 [ext_resource type="Texture2D" uid="uid://4fu7dvpmrst5" path="res://assets/Fantasy Swamp Forest/Free/BG_1/BG_1.png" id="12_a8y0u"]
-[ext_resource type="PackedScene" uid="uid://bc4a8j7okb15h" path="res://scenes/enemy/enemy.tscn" id="14_a8y0u"]
+[ext_resource type="PackedScene" uid="uid://cuuq0iqt41cne" path="res://scenes/enemy.tscn" id="14_a8y0u"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_o6xl0"]
 texture = ExtResource("3_o6xl0")
@@ -7498,12 +7498,10 @@ repeat_times = 2
 position = Vector2(1025, 2009)
 texture = ExtResource("12_a8y0u")
 
-[node name="player" parent="." unique_id=1446381301 instance=ExtResource("1_o5qli")]
+[node name="player" parent="." unique_id=1446381301 groups=["player"] instance=ExtResource("1_o5qli")]
 top_level = true
 position = Vector2(-1679, 2164)
 
-[node name="Enemy" parent="." unique_id=596459649 instance=ExtResource("14_a8y0u")]
-top_level = true
-light_mask = 1023
-visibility_layer = 1023
-position = Vector2(-1484, 2132)
+[node name="Enemy" parent="." unique_id=2046854075 instance=ExtResource("14_a8y0u")]
+position = Vector2(-1440, 2162)
+scale = Vector2(0.7, 0.7)
