@@ -7503,5 +7503,5 @@ top_level = true
 position = Vector2(-1679, 2164)
 
 [node name="Enemy" parent="." unique_id=2046854075 instance=ExtResource("14_a8y0u")]
-position = Vector2(-1440, 2162)
+position = Vector2(-1442.0001, 2158)
 scale = Vector2(0.7, 0.7)

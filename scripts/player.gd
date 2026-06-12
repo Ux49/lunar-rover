@@ -1,65 +1,98 @@
+
+
 extends CharacterBody2D
 
-const SPEED = 120.0
-const JUMP_VELOCITY = -250.0
-const COMBO_WINDOW = 0.5
-const DASH_SPEED = 280.0
-const DASH_DURATION = 0.2
-const DASH_COOLDOWN = 0.8
-const HURT_INVINCIBLE_DURATION = 1.2
 
-@onready var animated_sprite_2d: AnimatedSprite2D = $AnimatedSprite2D
-@onready var attack_area: Area2D = $AttackHitboxArea
+const SPEED:             float = 125.0
+const JUMP_VELOCITY:     float = -270.0
+const GRAVITY_SCALE:     float = 1.0
+
+const MAX_JUMPS:         int   = 2
+const COYOTE_TIME:       float = 0.12
+const JUMP_BUFFER_TIME:  float = 0.10
+
+const DASH_SPEED:        float = 300.0
+const DASH_DURATION:     float = 0.18
+const DASH_COOLDOWN:     float = 0.75
+const DASH_INVINCIBLE:   float = 0.18
+
+const COMBO_WINDOW:      float = 0.55
+const COMBO_STEPS:       int   = 4
+
+const HURT_INVINCIBLE:   float = 1.3
+const HURT_STUN:         float = 0.35
+const SHIELD_ABSORB:     float = 0.4
+
+const HITSTOP_DURATION:  float = 0.06
+
+
+class AttackStep:
+	var damage: int
+	var lunge:  float
+	var anim:   String
+	func _init(d: int, l: float, a: String) -> void:
+		damage = d
+		lunge  = l
+		anim   = a
+
+var ATTACKS: Array[AttackStep] = []  
+
+
+@export var max_health: int = 20
+
+@onready var anim:          AnimatedSprite2D = $AnimatedSprite2D
+@onready var attack_area:   Area2D           = $AttackHitboxArea
 @onready var attack_hitbox: CollisionShape2D = $AttackHitboxArea/AttackHitbox
-@onready var hurtbox: CollisionShape2D = $HurtboxArea/Hurtbox
-@onready var idle_collision: CollisionShape2D = $idle_collision
+@onready var hurtbox_area:  Area2D           = $HurtboxArea
+@onready var hurtbox:       CollisionShape2D = $HurtboxArea/Hurtbox
+@onready var body_col:      CollisionShape2D = $idle_collision
 
-const ATTACK_DATA = {
-	1: { "damage": 5,  "lunge": 60.0,  "anim": "attack_1" },
-	2: { "damage": 7,  "lunge": 40.0,  "anim": "attack_2" },
-	3: { "damage": 10, "lunge": 80.0,  "anim": "attack_3" },
-	4: { "damage": 18, "lunge": 120.0, "anim": "attack_4" },
-}
 
-var is_attacking := false
-var combo_step := 0
-var combo_timer := 0.0
-var buffered_attack := false
-var hitstop_timer := 0.0
+var health:           int   = 20
 
-var is_dashing := false
-var dash_timer := 0.0
-var dash_cooldown_timer := 0.0
-var dash_direction := 1.0
 
-var facing := 1.0
-var jump_count := 0
-const MAX_JUMPS = 2
+var facing:           float = 1.0
+var jump_count:       int   = 0
+var coyote_timer:     float = 0.0
+var jump_buffer:      float = 0.0
+var was_on_floor:     bool  = true
 
-var is_shielding := false      # blocks damage when true
-var is_hurt := false
-var is_dead := false
-var hurt_flash_timer := 0.0
+var is_dashing:       bool  = false
+var dash_timer:       float = 0.0
+var dash_cooldown:    float = 0.0
+var dash_dir:         float = 1.0
+var dash_invincible:  float = 0.0
 
+var is_attacking:     bool  = false
+var combo_step:       int   = 0
+var combo_timer:      float = 0.0
+var attack_buffered:  bool  = false
+var attacked_enemies: Array = []
+
+var is_shielding:     bool  = false
+
+var hitstop_timer:    float = 0.0
+
+var is_hurt:          bool  = false
+var hurt_stun_timer:  float = 0.0
+var invincible_timer: float = 0.0
+var is_dead:          bool  = false
+var flash_timer:      float = 0.0
 
 func _ready() -> void:
-	animated_sprite_2d.animation_finished.connect(_on_animation_finished)
-	_set_standing()
+	add_to_group("player")
+	health = max_health
 
+	ATTACKS.resize(5)
+	ATTACKS[0] = AttackStep.new(0,  0.0,  "idle")
+	ATTACKS[1] = AttackStep.new(5,  55.0, "attack_1")
+	ATTACKS[2] = AttackStep.new(7,  35.0, "attack_2")
+	ATTACKS[3] = AttackStep.new(10, 70.0, "attack_3")
+	ATTACKS[4] = AttackStep.new(18, 110.0,"attack_4")
 
-func _set_standing() -> void:
-	idle_collision.disabled = false
-	hurtbox.disabled = false
-	attack_hitbox.disabled = true
-	attack_area.scale.x = 1
-
-
-func _set_attacking() -> void:
-	idle_collision.disabled = false
-	hurtbox.disabled = false
-	attack_hitbox.disabled = false
-	attack_area.scale.x = facing
-
+	anim.animation_finished.connect(_on_anim_finished)
+	hurtbox_area.area_entered.connect(_on_hurtbox_entered)
+	_set_hitbox(false)
 
 func _physics_process(delta: float) -> void:
 	if is_dead:
@@ -67,173 +100,250 @@ func _physics_process(delta: float) -> void:
 
 	if hitstop_timer > 0.0:
 		hitstop_timer -= delta
-		animated_sprite_2d.pause()
+		anim.pause()
 		return
-	elif not animated_sprite_2d.is_playing():
-		animated_sprite_2d.play()
+	elif not anim.is_playing():
+		anim.play()
 
-	if hurt_flash_timer > 0.0:
-		hurt_flash_timer -= delta
-		animated_sprite_2d.modulate.a = 0.3 if fmod(hurt_flash_timer, 0.15) < 0.075 else 1.0
-	else:
-		animated_sprite_2d.modulate.a = 1.0
+	_tick_timers(delta)
+
 
 	if not is_on_floor():
-		velocity += get_gravity() * delta
+		velocity += get_gravity() * GRAVITY_SCALE * delta
 	else:
-		jump_count = 0
+		if not was_on_floor:
+			jump_count = 0
+		coyote_timer = COYOTE_TIME
 
-	if dash_cooldown_timer > 0.0:
-		dash_cooldown_timer -= delta
+	was_on_floor = is_on_floor()
 
 	_handle_input(delta)
+
+	if is_attacking:
+		_check_hits()
+
 	move_and_slide()
 	_update_animation()
+
+func _tick_timers(delta: float) -> void:
+	dash_cooldown    = maxf(0.0, dash_cooldown    - delta)
+	dash_timer       = maxf(0.0, dash_timer       - delta)
+	dash_invincible  = maxf(0.0, dash_invincible  - delta)
+	combo_timer      = maxf(0.0, combo_timer      - delta)
+	hurt_stun_timer  = maxf(0.0, hurt_stun_timer  - delta)
+	invincible_timer = maxf(0.0, invincible_timer - delta)
+	flash_timer      = maxf(0.0, flash_timer      - delta)
+	coyote_timer     = maxf(0.0, coyote_timer     - delta)
+	jump_buffer      = maxf(0.0, jump_buffer      - delta)
+
+	if is_attacking and combo_timer <= 0.0 and not attack_buffered:
+		_reset_combo()
+
+	if is_hurt and hurt_stun_timer <= 0.0:
+		is_hurt = false
+
+	if flash_timer > 0.0:
+		anim.modulate.a = 0.25 if fmod(flash_timer, 0.14) < 0.07 else 1.0
+	else:
+		anim.modulate.a = 1.0
 
 
 func _handle_input(delta: float) -> void:
 	if is_hurt or is_dead:
-		velocity.x = move_toward(velocity.x, 0, SPEED)
+		velocity.x = move_toward(velocity.x, 0.0, SPEED * 4.0 * delta)
 		return
 
-	# Dash
-	if Input.is_action_just_pressed("dash") and dash_cooldown_timer <= 0.0 and not is_dashing:
-		is_dashing = true
-		dash_timer = DASH_DURATION
-		dash_direction = facing
+	var dir: float = Input.get_axis("left", "right")
+
+
+	if not is_attacking and not is_dashing:
+		if dir > 0.0:
+			facing      = 1.0
+			anim.flip_h = false
+		elif dir < 0.0:
+			facing      = -1.0
+			anim.flip_h = true
+
+	if Input.is_action_just_pressed("jump"):
+		jump_buffer = JUMP_BUFFER_TIME
+
+
+	var can_coyote: bool = coyote_timer > 0.0 and jump_count == 0
+	var can_air:    bool = jump_count < MAX_JUMPS and jump_count > 0
+	if jump_buffer > 0.0 and (can_coyote or can_air):
+		velocity.y   = JUMP_VELOCITY
+		jump_count  += 1
+		jump_buffer  = 0.0
+		coyote_timer = 0.0
 		if is_attacking:
 			_reset_combo()
-		else:
-			_set_standing()
+
+
+	if Input.is_action_just_released("jump") and velocity.y < -60.0:
+		velocity.y *= 0.5
+
+
+	if Input.is_action_just_pressed("dash") and dash_cooldown <= 0.0 and not is_dashing:
+		_start_dash()
 
 	if is_dashing:
-		dash_timer -= delta
-		velocity.x = dash_direction * DASH_SPEED
+		velocity.x = dash_dir * DASH_SPEED
 		if dash_timer <= 0.0:
-			is_dashing = false
-			dash_cooldown_timer = DASH_COOLDOWN
-			_set_standing()
+			is_dashing    = false
+			dash_cooldown = DASH_COOLDOWN
+			_set_hitbox(false)
 		return
 
-	var want_shield = Input.is_action_pressed("shield") and is_on_floor()
+	# Shield
+	var want_shield: bool = Input.is_action_pressed("shield") and is_on_floor()
 	if want_shield != is_shielding:
 		is_shielding = want_shield
 		if is_shielding and is_attacking:
 			_reset_combo()
 
 	if is_shielding:
-		velocity.x = move_toward(velocity.x, 0, SPEED)
+		velocity.x = move_toward(velocity.x, 0.0, SPEED * 5.0 * delta)
 		return
 
-	# Jump
-	if Input.is_action_just_pressed("jump") and jump_count < MAX_JUMPS:
-		velocity.y = JUMP_VELOCITY
-		jump_count += 1
-		if is_attacking:
-			_reset_combo()
-
-	# Attack
+	# Attack input
 	if Input.is_action_just_pressed("attack") and not is_dashing:
 		if is_attacking:
-			buffered_attack = true
+			attack_buffered = true
 		else:
 			_start_attack(1)
 
-	# Movement
-	var direction := Input.get_axis("left", "right")
+	# Horizontal movement
 	if is_attacking:
-		var lunge = ATTACK_DATA[combo_step]["lunge"] * facing
-		velocity.x = move_toward(velocity.x, lunge, SPEED * delta * 10)
+		var step:  AttackStep = ATTACKS[combo_step]
+		var lunge: float      = step.lunge * facing
+		velocity.x = move_toward(velocity.x, lunge, SPEED * delta * 12.0)
 	else:
-		if direction:
-			velocity.x = direction * SPEED
+		if dir != 0.0:
+			velocity.x = dir * SPEED
 		else:
-			velocity.x = move_toward(velocity.x, 0, SPEED)
+			velocity.x = move_toward(velocity.x, 0.0, SPEED * 5.0 * delta)
 
-	# Facing
-	if not is_attacking and not is_dashing:
-		if direction > 0:
-			facing = 1.0
-			animated_sprite_2d.flip_h = false
-		elif direction < 0:
-			facing = -1.0
-			animated_sprite_2d.flip_h = true
+func _start_dash() -> void:
+	is_dashing      = true
+	dash_timer      = DASH_DURATION
+	dash_invincible = DASH_INVINCIBLE
+	dash_dir        = facing
+	velocity.y      = 0.0
+	if is_attacking:
+		_reset_combo()
+	anim.play("dash")
 
 
 func _start_attack(step: int) -> void:
-	combo_step = step
-	is_attacking = true
-	combo_timer = COMBO_WINDOW
-	buffered_attack = false
-	animated_sprite_2d.play(ATTACK_DATA[step]["anim"])
-	_set_attacking()
+	combo_step      = step
+	is_attacking    = true
+	combo_timer     = COMBO_WINDOW
+	attack_buffered = false
+	attacked_enemies.clear()
+	var s: AttackStep = ATTACKS[step]
+	anim.play(s.anim)
+	_set_hitbox(true)
 
 
 func _reset_combo() -> void:
-	is_attacking = false
-	combo_step = 0
-	combo_timer = 0.0
-	buffered_attack = false
-	_set_standing()
+	is_attacking    = false
+	combo_step      = 0
+	combo_timer     = 0.0
+	attack_buffered = false
+	attacked_enemies.clear()
+	_set_hitbox(false)
 
 
-func take_damage(_amount: int) -> void:
-	# Damage is completely ignored if shielding, dashing, invincible, or dead
-	if is_shielding or is_dashing or hurt_flash_timer > 0.0 or is_dead:
+func _set_hitbox(active: bool) -> void:
+	attack_hitbox.set_deferred("disabled", not active)
+	if active:
+		attack_area.scale.x = facing
+
+
+func _check_hits() -> void:
+	for area: Area2D in attack_area.get_overlapping_areas():
+		if area.is_in_group("enemy_hurtbox"):
+			var enemy: Node = area.get_parent()
+			if enemy in attacked_enemies:
+				continue
+			attacked_enemies.append(enemy)
+			var knock_dir: float = sign(enemy.global_position.x - global_position.x)
+			if enemy.has_method("take_damage"):
+				var step: AttackStep = ATTACKS[combo_step]
+				enemy.take_damage(step.damage, knock_dir)
+			_apply_hitstop(HITSTOP_DURATION)
+
+func take_damage(amount: int) -> void:
+	if is_dead:
 		return
+	if dash_invincible > 0.0:
+		return
+	if invincible_timer > 0.0:
+		return
+
+	var actual_damage: int = amount
+	if is_shielding:
+		actual_damage = int(float(amount) * (1.0 - SHIELD_ABSORB))
+
+	health -= actual_damage
 	_reset_combo()
-	is_hurt = true
-	hurt_flash_timer = HURT_INVINCIBLE_DURATION
-	velocity.x = -facing * 200.0
-	velocity.y = -150.0
-	_set_standing()
-	animated_sprite_2d.play("hurt")
+	is_shielding     = false
+	is_hurt          = true
+	hurt_stun_timer  = HURT_STUN
+	invincible_timer = HURT_INVINCIBLE
+	flash_timer      = HURT_INVINCIBLE
+	velocity.x       = -facing * 210.0
+	velocity.y       = -160.0
+	anim.play("hurt")
+
+	if health <= 0:
+		_die()
 
 
 func _die() -> void:
 	if is_dead:
 		return
-	is_dead = true
-	_reset_combo()
-	is_dashing = false
+	is_dead  = true
 	velocity = Vector2.ZERO
-	_set_standing()
-	animated_sprite_2d.play("die")
+	_reset_combo()
+	anim.play("die")
 
+func _apply_hitstop(duration: float) -> void:
+	hitstop_timer = maxf(hitstop_timer, duration)
 
-func apply_hitstop(duration: float) -> void:
-	hitstop_timer = duration
-
-
-func _on_animation_finished() -> void:
-	var anim := animated_sprite_2d.animation
-	match anim:
+func _on_anim_finished() -> void:
+	var current: String = anim.animation
+	match current:
 		"hurt":
-			is_hurt = false
-			_set_standing()
+			pass   # is_hurt cleared by timer already
 		"die":
 			get_tree().reload_current_scene()
 		_:
-			if anim.begins_with("attack_"):
-				if buffered_attack and combo_step < 4:
+			if current.begins_with("attack_"):
+				if attack_buffered and combo_step < COMBO_STEPS:
 					_start_attack(combo_step + 1)
 				else:
 					_reset_combo()
+
+
+func _on_hurtbox_entered(area: Area2D) -> void:
+	if area.is_in_group("enemy_attack"):
+		take_damage(5)
 
 
 func _update_animation() -> void:
 	if is_dead or is_hurt:
 		return
 	if is_dashing:
-		animated_sprite_2d.play("dash")
+		anim.play("dash")
 		return
 	if is_attacking:
 		return
 	if is_shielding:
-		animated_sprite_2d.play("shield_idle")
+		anim.play("shield_idle")
 		return
 	if not is_on_floor():
-		animated_sprite_2d.play("jump" if velocity.y < 0 else "fall")
+		anim.play("jump" if velocity.y < 0.0 else "fall")
 		return
-	var direction := Input.get_axis("left", "right")
-	animated_sprite_2d.play("walk" if direction != 0 else "idle")
+	var dir: float = Input.get_axis("left", "right")
+	anim.play("walk" if dir != 0.0 else "idle")
